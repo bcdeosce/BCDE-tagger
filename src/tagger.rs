@@ -6,7 +6,7 @@ use crate::resolver::Resolver;
 use crate::tokenizer::tokenize_mwt;
 
 // ─── Ordem EXATA usada no treino Python ───
-const ALL_POS: &[&str] = &[
+pub const ALL_POS: &[&str] = &[
     "NOUN","PROPN","VERB","AUX","ADJ","ADV","PRON","DET",
     "ADP","CCONJ","SCONJ","NUM","PART","INTJ","PUNCT","SYM","X",
 ];
