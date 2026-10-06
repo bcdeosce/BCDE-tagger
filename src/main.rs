@@ -1,9 +1,4 @@
-mod tokenizer;
-mod crf;
-mod resolver;
-mod tagger;
-
-use tagger::Tagger;
+use bcde_tagger::Tagger;
 use std::io::{self, BufRead, Write};
 
 fn main() -> std::io::Result<()> {
@@ -23,7 +18,9 @@ fn main() -> std::io::Result<()> {
         let tokens = tagger.tag(&text);
         for t in tokens {
             let extra = match (&t.diacritic, &t.sense, &t.resolver_level) {
-                (Some(d), Some(s), Some(l)) => format!("\tdiac={d}\tsense={s}\tvia={l}"),
+                (Some(d), Some(s), Some(l)) => {
+                    format!("\tdiac={d}\tsense={s}\tvia={l}")
+                }
                 (Some(d), _, _) => format!("\tdiac={d}"),
                 _ => String::new(),
             };
