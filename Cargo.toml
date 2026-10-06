@@ -10,6 +10,10 @@ readme = "README.md"
 keywords = ["nlp", "pos-tagger", "portuguese", "linguistics"]
 categories = ["text-processing", "science"]
 
+[lib]
+name = "bcde_tagger"
+path = "src/lib.rs"
+
 [[bin]]
 name = "bcde-tagger"
 path = "src/main.rs"
