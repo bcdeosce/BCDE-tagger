@@ -1,0 +1,42 @@
+NOTICE
+======
+
+Este projeto é distribuído sob a licença MIT (veja LICENSE).
+
+Os arquivos de dados em data/ são artefatos derivados de múltiplas fontes
+com licenças próprias. Ao redistribuir os dados, preserve os créditos:
+
+- fserb/pt-br (https://github.com/fserb/pt-br)
+  Licença: MIT
+  Uso: conjugações verbais e léxico base
+
+- ime.usp.br/~pf/dicios (https://www.ime.usp.br/~pf/dicios/)
+  Licença: CC BY
+  Uso: lista de palavras do português brasileiro
+
+- Portal da Língua Portuguesa (https://www.portaldalinguaportuguesa.org/)
+  Licença: livre acesso
+  Uso: scraping lexical
+
+- TigreGotico/bifonia (https://github.com/TigreGotico/bifonia)
+  Licença: CC BY-SA 4.0
+  Uso: anotação de sentidos, dataset de homógrafos
+
+- TigreGotico/bifonia-pt-homographs
+  (https://huggingface.co/datasets/TigreGotico/bifonia-pt-homographs)
+  Licença: CC BY-SA 4.0
+  Uso: validação de desambiguação
+
+- Universal Dependencies — Portuguese Bosque
+  (https://universaldependencies.org/treebanks/pt_bosque/)
+  Licença: CC BY-SA 4.0
+  Uso: anotação POS inicial
+
+- Stanza (https://stanfordnlp.github.io/stanza/)
+  Licença: Apache 2.0
+  Uso: ferramenta de anotação inicial
+
+O modelo treinado (CRF, tabelas, resolver) é um artefato derivado desses
+dados. A licença MIT se aplica ao código-fonte; os dados derivados herdam
+as obrigações das licenças originais (em especial CC BY-SA 4.0, que exige
+compartilhamento sob a mesma licença).

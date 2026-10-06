@@ -1,0 +1,529 @@
+{
+  "acordo": {
+    "agreement": "acôrdo",
+    "wake": "acórdo"
+  },
+  "para": {
+    "purpose": "para",
+    "stop": "pára"
+  },
+  "aperto": {
+    "squeeze": "apêrto",
+    "tighten": "apérto"
+  },
+  "apelo": {
+    "appeal": "apêlo",
+    "call_out": "apélo"
+  },
+  "sobre": {
+    "about": "sobre",
+    "leftover": "sóbre",
+    "sail": "sôbre"
+  },
+  "aborto": {
+    "abortion": "abôrto",
+    "abort": "abórto"
+  },
+  "pelo": {
+    "by_the": "pelo",
+    "peel": "pélo",
+    "hair": "pêlo"
+  },
+  "aceno": {
+    "nod": "acêno",
+    "beckon": "acéno"
+  },
+  "abono": {
+    "vouch": "abóno",
+    "allowance": "abôno"
+  },
+  "abrolho": {
+    "caltrop": "abrôlho",
+    "sprout": "abrólho"
+  },
+  "adorno": {
+    "adornment": "adôrno",
+    "adorn": "adórno"
+  },
+  "solto": {
+    "loose": "sôlto",
+    "release": "sólto"
+  },
+  "conserto": {
+    "repair": "consêrto",
+    "mend": "consérto"
+  },
+  "topo": {
+    "summit": "tôpo",
+    "bump_into": "tópo"
+  },
+  "forma": {
+    "shape": "fórma",
+    "mould": "fôrma"
+  },
+  "esmero": {
+    "meticulousness": "esmêro",
+    "perfect": "esméro"
+  },
+  "olho": {
+    "look": "ólho",
+    "eye": "ôlho"
+  },
+  "porto": {
+    "harbour": "pôrto",
+    "carry": "pórto"
+  },
+  "governo": {
+    "government": "govêrno",
+    "govern": "govérno"
+  },
+  "jogo": {
+    "game": "jôgo",
+    "play": "jógo"
+  },
+  "apego": {
+    "attachment": "apêgo",
+    "cling": "apégo"
+  },
+  "desapego": {
+    "indifference": "desapêgo",
+    "let_go": "desapégo"
+  },
+  "emprego": {
+    "job": "emprêgo",
+    "employ": "emprégo"
+  },
+  "acerto": {
+    "settlement": "acêrto",
+    "adjust": "acérto"
+  },
+  "peso": {
+    "weight": "pêso",
+    "weigh": "péso"
+  },
+  "corte": {
+    "cut": "córte",
+    "court": "côrte"
+  },
+  "selo": {
+    "stamp": "sêlo",
+    "seal": "sélo"
+  },
+  "arrepelo": {
+    "hair_pulling": "arrepêlo",
+    "snatch": "arrepélo"
+  },
+  "cerro": {
+    "shut": "cérro",
+    "hill": "cêrro"
+  },
+  "cerco": {
+    "siege": "cêrco",
+    "surround": "cérco"
+  },
+  "choco": {
+    "addled": "chôco",
+    "cuttlefish": "chôco",
+    "hatch": "chóco"
+  },
+  "cor": {
+    "colour": "côr",
+    "by_heart": "cór"
+  },
+  "transtorno": {
+    "disorder": "transtôrno",
+    "upset": "transtórno"
+  },
+  "bola": {
+    "ball": "bóla",
+    "loaf": "bôla"
+  },
+  "força": {
+    "strength": "fôrça",
+    "force": "fórça"
+  },
+  "azedo": {
+    "sour": "azêdo",
+    "turn_sour": "azédo"
+  },
+  "gosto": {
+    "taste": "gôsto",
+    "like": "gósto"
+  },
+  "molho": {
+    "sauce": "môlho",
+    "bundle": "mólho"
+  },
+  "arrojo": {
+    "hurl": "arrójo",
+    "boldness": "arrôjo"
+  },
+  "choro": {
+    "weeping": "chôro",
+    "weep": "chóro"
+  },
+  "desespero": {
+    "despair": "desespêro",
+    "despair_at": "desespéro"
+  },
+  "cobro": {
+    "collect": "cóbro",
+    "cessation": "côbro"
+  },
+  "sede": {
+    "seat": "séde",
+    "thirst": "sêde"
+  },
+  "desconforto": {
+    "discomfort": "desconfôrto",
+    "discomfit": "desconfórto"
+  },
+  "troco": {
+    "change": "trôco",
+    "exchange": "tróco"
+  },
+  "começo": {
+    "beginning": "comêço",
+    "begin": "coméço"
+  },
+  "colher": {
+    "harvest": "colhêr",
+    "spoon": "colhér"
+  },
+  "consolo": {
+    "consolation": "consôlo",
+    "console": "consólo"
+  },
+  "congelo": {
+    "freeze": "congélo",
+    "freezing": "congêlo"
+  },
+  "coro": {
+    "choir": "côro",
+    "blush": "córo"
+  },
+  "esforço": {
+    "effort": "esfôrço",
+    "strive": "esfórço"
+  },
+  "almoço": {
+    "lunch": "almôço",
+    "dine": "almóço"
+  },
+  "colmo": {
+    "culm": "côlmo",
+    "thatch": "cólmo"
+  },
+  "seco": {
+    "dry": "sêco",
+    "dry_vb": "séco"
+  },
+  "torre": {
+    "tower": "tôrre",
+    "roast": "tórre"
+  },
+  "decoro": {
+    "memorize": "decóro",
+    "decorum": "decôro"
+  },
+  "desacordo": {
+    "disagreement": "desacôrdo",
+    "disagree": "desacórdo"
+  },
+  "erro": {
+    "error": "êrro",
+    "err": "érro"
+  },
+  "degelo": {
+    "thaw": "degêlo",
+    "thaw_out": "degélo"
+  },
+  "gelo": {
+    "ice": "gêlo",
+    "freeze": "gélo"
+  },
+  "entorno": {
+    "surroundings": "entôrno",
+    "spill": "entórno"
+  },
+  "conforto": {
+    "comfort": "confôrto",
+    "soothe": "confórto"
+  },
+  "desafogo": {
+    "relieve": "desafógo",
+    "relief": "desafôgo"
+  },
+  "posto": {
+    "post": "pósto",
+    "station": "pôsto"
+  },
+  "desconsolo": {
+    "disconsolation": "desconsôlo",
+    "dishearten": "desconsólo"
+  },
+  "desemprego": {
+    "noun": "desemprêgo",
+    "verb": "desemprégo"
+  },
+  "desdobro": {
+    "unfolding": "desdôbro",
+    "unfold": "desdóbro"
+  },
+  "enredo": {
+    "plot": "enrêdo",
+    "entangle": "enrédo"
+  },
+  "desempeno": {
+    "straightening": "desempêno",
+    "straighten": "desempéno"
+  },
+  "desaforo": {
+    "insolence": "desafôro",
+    "affront": "desafóro"
+  },
+  "torno": {
+    "lathe": "tôrno",
+    "turn": "tórno"
+  },
+  "desenredo": {
+    "denouement": "desenrêdo",
+    "disentangle": "desenrédo"
+  },
+  "desemperro": {
+    "unjamming": "desempêrro",
+    "unjam": "desempérro"
+  },
+  "desempeço": {
+    "riddance": "desempêço",
+    "free_up": "desempéço"
+  },
+  "desgelo": {
+    "defrosting": "desgêlo",
+    "defrost": "desgélo"
+  },
+  "desprezo": {
+    "contempt": "desprêzo",
+    "despise": "desprézo"
+  },
+  "desmantelo": {
+    "dismantling": "desmantêlo",
+    "dismantle": "desmantélo"
+  },
+  "novelo": {
+    "yarn_ball": "novêlo",
+    "narrate": "novélo"
+  },
+  "destroço": {
+    "wreckage": "destrôço",
+    "wreck": "destróço"
+  },
+  "desgosto": {
+    "sorrow": "desgôsto",
+    "dislike": "desgósto"
+  },
+  "despojo": {
+    "spoils": "despôjo",
+    "strip": "despójo"
+  },
+  "desvelo": {
+    "devotion": "desvêlo",
+    "unveil": "desvélo"
+  },
+  "empeno": {
+    "warping": "empêno",
+    "warp": "empéno"
+  },
+  "emperro": {
+    "jam": "empêrro",
+    "stick": "empérro"
+  },
+  "domo": {
+    "dome": "dômo",
+    "tame": "dómo"
+  },
+  "engodo": {
+    "bait": "engôdo",
+    "lure": "engódo"
+  },
+  "toldo": {
+    "awning": "tôldo",
+    "cloud_over": "tóldo"
+  },
+  "encosto": {
+    "backrest": "encôsto",
+    "lean": "encósto"
+  },
+  "sossego": {
+    "calm": "sossêgo",
+    "soothe": "sosségo"
+  },
+  "escorço": {
+    "foreshortening": "escôrço",
+    "foreshorten": "escórço"
+  },
+  "escabelo": {
+    "dishevel": "escabélo",
+    "stool": "escabêlo"
+  },
+  "espeto": {
+    "skewer": "espêto",
+    "stab": "espéto"
+  },
+  "estofo": {
+    "stuffing": "estôfo",
+    "upholster": "estófo"
+  },
+  "relevo": {
+    "relief_terrain": "relêvo",
+    "emphasize": "relévo"
+  },
+  "forro": {
+    "lining": "fôrro",
+    "line": "fórro"
+  },
+  "tempero": {
+    "seasoning": "tempêro",
+    "season": "tempéro"
+  },
+  "gozo": {
+    "enjoyment": "gôzo",
+    "enjoy": "gózo"
+  },
+  "jorro": {
+    "jet": "jôrro",
+    "gush": "jórro"
+  },
+  "golfo": {
+    "gulf": "gôlfo",
+    "spew": "gólfo"
+  },
+  "logro": {
+    "deceit": "lôgro",
+    "deceive": "lógro"
+  },
+  "retorno": {
+    "return": "retôrno",
+    "go_back": "retórno"
+  },
+  "reboco": {
+    "plaster": "rebôco",
+    "tow": "rebóco"
+  },
+  "reforço": {
+    "reinforcement": "refôrço",
+    "reinforce": "refórço"
+  },
+  "redobro": {
+    "redoubling": "redôbro",
+    "redouble": "redóbro"
+  },
+  "rego": {
+    "furrow": "rêgo",
+    "water": "régo"
+  },
+  "repelo": {
+    "hair_pull": "repêlo",
+    "pluck": "repélo"
+  },
+  "rogo": {
+    "beg": "rógo",
+    "plea": "rôgo"
+  },
+  "rola": {
+    "rolls": "róla",
+    "turtledove": "rôla"
+  },
+  "rolo": {
+    "roll": "rôlo",
+    "tumble": "rólo"
+  },
+  "soldo": {
+    "pay": "sôldo",
+    "weld": "sóldo"
+  },
+  "sobro": {
+    "cork_oak": "sôbro",
+    "be_left_over": "sóbro"
+  },
+  "soma": {
+    "sum": "sôma",
+    "add": "sóma"
+  },
+  "soco": {
+    "punch": "sôco",
+    "strike": "sóco"
+  },
+  "sopeso": {
+    "weigh_up": "sopéso",
+    "heft": "sopêso"
+  },
+  "sopro": {
+    "breath": "sôpro",
+    "blow": "sópro"
+  },
+  "tola": {
+    "foolish": "tôla",
+    "head": "tóla"
+  },
+  "toco": {
+    "stump": "tôco",
+    "play": "tóco"
+  },
+  "zelo": {
+    "zeal": "zêlo",
+    "tend": "zélo"
+  },
+  "renovo": {
+    "renew": "renóvo",
+    "shoot": "renôvo"
+  },
+  "fosso": {
+    "ditch": "fôsso",
+    "root_up": "fósso"
+  },
+  "contorno": {
+    "contour": "contôrno",
+    "circumvent": "contórno"
+  },
+  "desassossego": {
+    "disquiet": "desassossêgo",
+    "disturb": "desassosségo"
+  },
+  "esboço": {
+    "sketch": "esbôço",
+    "outline": "esbóço"
+  },
+  "arroto": {
+    "belch": "arrôto",
+    "burp": "arróto"
+  },
+  "despego": {
+    "detachment": "despêgo",
+    "detach": "despégo"
+  },
+  "dobro": {
+    "double": "dôbro",
+    "fold": "dóbro"
+  },
+  "atropelo": {
+    "trampling": "atropêlo",
+    "run_over": "atropélo"
+  },
+  "arremesso": {
+    "throw": "arremêsso",
+    "fling": "arremésso"
+  },
+  "polo": {
+    "pole": "pólo",
+    "fledgling": "pôlo"
+  },
+  "arremedo": {
+    "imitation": "arremêdo",
+    "mimic": "arremédo"
+  },
+  "lobo": {
+    "wolf": "lôbo",
+    "lobe": "lóbo"
+  }
+}
