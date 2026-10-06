@@ -11,7 +11,7 @@ keywords = ["nlp", "pos-tagger", "portuguese", "linguistics"]
 categories = ["text-processing", "science"]
 
 [[bin]]
-name = "bcde-tagger"      
+name = "bcde-tagger"
 path = "src/main.rs"
 
 [dependencies]
