@@ -36,7 +36,7 @@ A biblioteca [bifonia](https://github.com/TigreGotico/bifonia) do [Tigre Gotico]
 | **MWT expansion** | 80 contrações expandidas automaticamente |
 | **Diacrítico** | 131 homógrafos desambiguados por contexto |
 | **Sentido** | label semântico (`seat`, `thirst`, `hair`, etc.) |
-| **CLI** | `echo "frase" \| ./tagger data` |
+| **CLI** | `echo "frase" \| ./bcde-tagger data` |
 | **Biblioteca Rust** | crate importável |
 | **Binding Python** | via subprocess ou reimplementação |
 
@@ -98,7 +98,7 @@ cd BCDE-tagger
 cargo build --release
 ```
 
-O binário fica em `target/release/tagger` (~2.3 MB).
+O binário fica em `target/release/bcde-tagger` (~2.3 MB).
 
 ### Python
 
@@ -107,7 +107,7 @@ O binário fica em `target/release/tagger` (~2.3 MB).
 cargo build --release
 
 # Use via subprocess
-python python/tagger_python.py "A sede da empresa é grande."
+python python/bcde-tagger_python.py "A sede da empresa é grande."
 ```
 
 ### Dependências
@@ -126,7 +126,7 @@ Nenhuma dependência neural. Nenhum runtime C++. Nenhuma GPU.
 ### CLI
 
 ```bash
-echo "A sede da empresa é grande." | ./target/release/tagger data
+echo "A sede da empresa é grande." | ./target/release/bcde-tagger data
 ```
 
 Saída:
