@@ -1,6 +1,4 @@
-from pathlib import Path
-
-CONTEUDO = r'''use std::collections::HashMap;
+use std::collections::HashMap;
 use std::path::Path;
 use serde::Deserialize;
 use crate::crf::Crf;
@@ -211,16 +209,3 @@ impl Tagger {
         f
     }
 }
-'''
-
-# Sobrescreve em todos os lugares
-for p in [
-    Path("/content/_git_clone/src/tagger.rs"),
-    Path("/content/drive/MyDrive/fonetizador/pipeline/producao_v1/tagger/src/tagger.rs"),
-    Path("/content/tagger/src/tagger.rs"),
-]:
-    if p.exists():
-        p.write_text(CONTEUDO, encoding="utf-8")
-        print(f"✓ {p}  ({len(CONTEUDO)} bytes)")
-    else:
-        print(f"✗ não existe: {p}")
