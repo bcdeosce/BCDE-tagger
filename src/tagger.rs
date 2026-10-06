@@ -5,6 +5,12 @@ use crate::crf::Crf;
 use crate::resolver::Resolver;
 use crate::tokenizer::tokenize_mwt;
 
+// ─── Ordem EXATA usada no treino Python ───
+const ALL_POS: &[&str] = &[
+    "NOUN","PROPN","VERB","AUX","ADJ","ADV","PRON","DET",
+    "ADP","CCONJ","SCONJ","NUM","PART","INTJ","PUNCT","SYM","X",
+];
+
 #[derive(Deserialize)]
 struct TabFile {
     always: HashMap<String, Vec<String>>,
@@ -18,6 +24,8 @@ pub struct Tagger {
     pub prior: HashMap<String, Vec<(u8, f64)>>,
     pub crf: Crf,
     pub resolver: Resolver,
+    // mapeia índice de crf.labels → índice em ALL_POS
+    pub crf_to_allpos: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -34,8 +42,14 @@ impl Tagger {
         let p = Path::new(base);
         let crf = Crf::load(p.join("crf_weights.json").to_str().unwrap())?;
 
-        let pos_idx: HashMap<&str, u8> = crf.labels.iter()
-            .enumerate().map(|(i, p)| (p.as_str(), i as u8)).collect();
+        // pos_idx em ordem ALL_POS (como o Python treinou)
+        let pos_idx: HashMap<&str, u8> = ALL_POS.iter()
+            .enumerate().map(|(i, p)| (*p, i as u8)).collect();
+
+        // mapeia cada label do CRF pro índice em ALL_POS
+        let crf_to_allpos: Vec<u8> = crf.labels.iter()
+            .map(|l| *pos_idx.get(l.as_str()).unwrap_or(&0))
+            .collect();
 
         let tab_raw = std::fs::read_to_string(p.join("tabelas_v3.json"))?;
         let tab: TabFile = serde_json::from_str(&tab_raw)
@@ -49,7 +63,8 @@ impl Tagger {
         }
         let mut ambig = HashMap::new();
         for (w, ps) in &tab.ambig {
-            let ids: Vec<u8> = ps.iter().filter_map(|p| pos_idx.get(p.as_str()).copied()).collect();
+            let ids: Vec<u8> = ps.iter()
+                .filter_map(|p| pos_idx.get(p.as_str()).copied()).collect();
             ambig.insert(w.clone(), ids);
         }
         let mut prior: HashMap<String, Vec<(u8, f64)>> = HashMap::new();
@@ -65,7 +80,7 @@ impl Tagger {
             p.join("diacriticos_table.json").to_str().unwrap(),
         )?;
 
-        Ok(Self { always, ambig, prior, crf, resolver })
+        Ok(Self { always, ambig, prior, crf, resolver, crf_to_allpos })
     }
 
     pub fn tag(&self, text: &str) -> Vec<Token> {
@@ -74,6 +89,7 @@ impl Tagger {
         let words_l: Vec<String> = tokens.iter().map(|t| t.to_lowercase()).collect();
         let n = tokens.len();
 
+        // -2 = ambíguo (buraco). Senão, índice em ALL_POS.
         let mut enc: Vec<i32> = (0..n)
             .map(|i| self.always.get(&words_l[i]).map(|&x| x as i32).unwrap_or(-2))
             .collect();
@@ -91,14 +107,15 @@ impl Tagger {
                 .collect();
 
             let preds = self.crf.predict(&feats_all);
+            // Converte saída do CRF (índice em crf.labels) → índice em ALL_POS
             for (k, &i) in amb_idx.iter().enumerate() {
-                enc[i] = preds[k] as i32;
+                enc[i] = self.crf_to_allpos[preds[k]] as i32;
             }
         }
 
         let mut out = Vec::with_capacity(n);
         for i in 0..n {
-            let upos = self.crf.labels[enc[i] as usize].clone();
+            let upos = ALL_POS[enc[i] as usize].to_string();
             let mut tok = Token {
                 word: tokens[i].clone(),
                 upos,
@@ -149,12 +166,11 @@ impl Tagger {
             }
             None => (0.0, -1),
         };
-        let n_labels = self.crf.labels.len();
         let cm: i64 = match self.ambig.get(w) {
             Some(ids) => ids.iter().fold(0i64, |acc, &x| acc | (1i64 << x)),
             None => match self.prior.get(w) {
                 Some(v) => v.iter().fold(0i64, |acc, &(x, _)| acc | (1i64 << x)),
-                None => (1i64 << n_labels) - 1,
+                None => (1i64 << ALL_POS.len()) - 1,
             },
         };
 
