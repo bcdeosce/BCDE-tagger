@@ -24,7 +24,7 @@ class Tagger:
         root = Path(__file__).resolve().parent.parent
 
         if binary is None:
-            binary = root / "target" / "release" / "tagger"
+            binary = root / "target" / "release" / "bcde-tagger" 
         if data_dir is None:
             data_dir = root / "data"
 
