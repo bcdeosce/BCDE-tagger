@@ -98,11 +98,27 @@ impl Tagger {
 
             let (start, _end) = spans[surf_idx];
             let tag = &tags[start];
+            let original = m.as_str();
+
             let word = match &tag.diacritic {
-                Some(d) => d.as_str(),
-                None => m.as_str(),
+                Some(d) => {
+                    // preserva capitalização
+                    let first_upper = original.chars().next()
+                        .map(|c| c.is_uppercase()).unwrap_or(false);
+                    if first_upper {
+                        let mut it = d.chars();
+                        match it.next() {
+                            Some(c) => c.to_uppercase().collect::<String>()
+                                + it.as_str(),
+                            None => d.clone(),
+                        }
+                    } else {
+                        d.clone()
+                    }
+                }
+                None => original.to_string(),
             };
-            out.push_str(word);
+            out.push_str(&word);
 
             last_end = m.end();
             surf_idx += 1;
