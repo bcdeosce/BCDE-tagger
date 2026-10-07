@@ -97,6 +97,7 @@ class Tagger:
         while len(result) < n_texts:
             result.append([])
         return result
+        
 
     # ── helpers ──────────────────────────────────────────────────
 
@@ -127,6 +128,20 @@ class Tagger:
             raise RuntimeError(f"tagger falhou (código {r.returncode}): {r.stderr}")
         res = self._parse(r.stdout, 1)
         return res[0] if res else []
+
+    def diacritize(self, text: str) -> str:
+        """Retorna o texto com diacríticos aplicados nas palavras desambiguadas."""
+        r = subprocess.run(
+            [str(self.binary), str(self.data_dir), "--diacritize"],
+            input=text + "\n",
+            capture_output=True,
+            text=True,
+        )
+        if r.returncode != 0:
+            raise RuntimeError(f"tagger falhou (código {r.returncode}): {r.stderr}")
+        return r.stdout.rstrip("\n")
+
+
 # ── API rápida ────────────────────────────────────────────────────
 _default: Optional[Tagger] = None
 
