@@ -43,6 +43,28 @@ static MWT: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::new(|| {
     m
 });
 
+/// MWT ambíguas — também existem como palavra única (NOUN/VERB).
+/// Só expandimos quando o contexto indica contração.
+static MWT_AMBIGUAS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+    ["pelo","pela","pelos","pelas"].into_iter().collect()
+});
+
+/// Palavras funcionais — se a próxima é uma delas, `pelo` não é contração.
+static FUNCIONAIS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+    [
+        "a","o","as","os","um","uma","uns","umas",
+        "de","do","da","dos","das","em","no","na","nos","nas",
+        "por","pelo","pela","pelos","pelas","com","sem","para",
+        "que","se","como","quando","onde","porque","pois",
+        "e","ou","mas","porém","contudo","todavia","entretanto",
+        "não","sim","muito","mais","menos","também","só","já","ainda",
+        "eu","tu","ele","ela","nós","vós","você","vocês","eles","elas",
+        "me","te","lhe","nos","vos","se","mim","ti","si","lhe",
+        "este","esta","estes","estas","esse","essa","esses","essas",
+        "aquele","aquela","aqueles","aquelas","isso","isto","aquilo",
+    ].into_iter().collect()
+});
+
 static SUJEITOS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     ["eu","tu","ele","ela","nós","vós","você","vocês","eles","elas"]
         .into_iter().collect()
@@ -65,60 +87,70 @@ fn prev_sujeito(surface: &[&str], i: usize) -> bool {
     SUJEITOS.contains(surface[i-1].to_lowercase().as_str())
 }
 
+/// Heurística: expandir `pelo` só quando o próximo parece nome.
+fn deve_expandir_ambigua(surface: &[&str], i: usize) -> bool {
+    if i + 1 >= surface.len() { return false; }
+    let next = surface[i+1].to_lowercase();
+    if FUNCIONAIS.contains(next.as_str()) { return false; }
+    if next.chars().count() > 3 && VERB_SUFIXOS.iter().any(|s| next.ends_with(s)) {
+        return false;
+    }
+    true
+}
+
+fn decide(surface: &[&str], i: usize) -> (bool, bool) {
+    // retorna (expandir, manter_surface)
+    let low = surface[i].to_lowercase();
+    if !MWT.contains_key(low.as_str()) {
+        return (false, true); // não é MWT, mantém
+    }
+    // nos/vos: pronome se prev é sujeito ou next é verbo
+    if low == "nos" || low == "vos" {
+        if prev_sujeito(surface, i)
+            || (i+1 < surface.len() && next_verb(surface[i+1])) {
+            return (false, true);
+        }
+    }
+    // pelo/pela/pelos/pelas: só expande se next parece nome
+    if MWT_AMBIGUAS.contains(low.as_str()) {
+        if !deve_expandir_ambigua(surface, i) {
+            return (false, true);
+        }
+    }
+    // qualquer outra MWT: expande
+    if prev_sujeito(surface, i) {
+        return (false, true);
+    }
+    (true, false)
+}
+
 pub fn tokenize_mwt(text: &str) -> Vec<String> {
     let surface: Vec<&str> = PAT.find_iter(text).map(|m| m.as_str()).collect();
     let mut out = Vec::with_capacity(surface.len());
-    for (i, &t) in surface.iter().enumerate() {
-        let low = t.to_lowercase();
-        match MWT.get(low.as_str()) {
-            None => out.push(t.to_string()),
-            Some(exp) => {
-                if low == "nos" {
-                    if prev_sujeito(&surface, i)
-                        || (i+1 < surface.len() && next_verb(surface[i+1])) {
-                        out.push(t.to_string()); continue;
-                    }
-                    out.extend(exp.iter().map(|s| s.to_string()));
-                    continue;
-                }
-                if prev_sujeito(&surface, i) {
-                    out.push(t.to_string()); continue;
-                }
-                out.extend(exp.iter().map(|s| s.to_string()));
-            }
+    for i in 0..surface.len() {
+        let (expandir, manter) = decide(&surface, i);
+        if manter {
+            out.push(surface[i].to_string());
+        } else if expandir {
+            let exp = MWT.get(surface[i].to_lowercase().as_str()).unwrap();
+            out.extend(exp.iter().map(|s| s.to_string()));
         }
     }
     out
 }
 
-/// Retorna (tokens_expandidos, spans).
-/// Cada `span[i]` = (start, end) em `tokens_expandidos` do i-ésimo token de superfície.
 pub fn tokenize_mwt_with_spans(text: &str) -> (Vec<String>, Vec<(usize, usize)>) {
     let surface: Vec<&str> = PAT.find_iter(text).map(|m| m.as_str()).collect();
     let mut tokens: Vec<String> = Vec::new();
     let mut spans: Vec<(usize, usize)> = Vec::new();
-    for (i, t) in surface.iter().enumerate() {
-        let low = t.to_lowercase();
+    for i in 0..surface.len() {
         let start = tokens.len();
-        match MWT.get(low.as_str()) {
-            None => tokens.push(t.to_string()),
-            Some(exp) => {
-                let mut expandiu = true;
-                if low == "nos" {
-                    if prev_sujeito(&surface, i)
-                        || (i + 1 < surface.len() && next_verb(surface[i + 1]))
-                    {
-                        expandiu = false;
-                    }
-                } else if prev_sujeito(&surface, i) {
-                    expandiu = false;
-                }
-                if expandiu {
-                    tokens.extend(exp.iter().map(|s| s.to_string()));
-                } else {
-                    tokens.push(t.to_string());
-                }
-            }
+        let (expandir, manter) = decide(&surface, i);
+        if manter {
+            tokens.push(surface[i].to_string());
+        } else if expandir {
+            let exp = MWT.get(surface[i].to_lowercase().as_str()).unwrap();
+            tokens.extend(exp.iter().map(|s| s.to_string()));
         }
         spans.push((start, tokens.len()));
     }
