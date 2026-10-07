@@ -115,7 +115,18 @@ class Tagger:
         """Retorna só a lista de POS."""
         return [t["upos"] for t in self.tag(text)]
 
-
+    def tag_surface(self, text: str) -> List[Dict[str, Optional[str]]]:
+        """Como tag(), mas preserva MWT de superfície (do, da, no, ...)."""
+        r = subprocess.run(
+            [str(self.binary), str(self.data_dir), "--surface"],
+            input=text + "\n",
+            capture_output=True,
+            text=True,
+        )
+        if r.returncode != 0:
+            raise RuntimeError(f"tagger falhou (código {r.returncode}): {r.stderr}")
+        res = self._parse(r.stdout, 1)
+        return res[0] if res else []
 # ── API rápida ────────────────────────────────────────────────────
 _default: Optional[Tagger] = None
 
