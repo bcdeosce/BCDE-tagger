@@ -3,9 +3,8 @@ use std::path::Path;
 use serde::Deserialize;
 use crate::crf::Crf;
 use crate::resolver::Resolver;
-use crate::tokenizer::tokenize_mwt;
+use crate::tokenizer::{tokenize_mwt, tokenize_mwt_with_spans};
 
-// ─── Ordem EXATA usada no treino Python ───
 pub const ALL_POS: &[&str] = &[
     "NOUN","PROPN","VERB","AUX","ADJ","ADV","PRON","DET",
     "ADP","CCONJ","SCONJ","NUM","PART","INTJ","PUNCT","SYM","X",
@@ -24,11 +23,10 @@ pub struct Tagger {
     pub prior: HashMap<String, Vec<(u8, f64)>>,
     pub crf: Crf,
     pub resolver: Resolver,
-    // mapeia índice de crf.labels → índice em ALL_POS
     pub crf_to_allpos: Vec<u8>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub word: String,
     pub upos: String,
@@ -41,12 +39,8 @@ impl Tagger {
     pub fn load(base: &str) -> std::io::Result<Self> {
         let p = Path::new(base);
         let crf = Crf::load(p.join("crf_weights.json").to_str().unwrap())?;
-
-        // pos_idx em ordem ALL_POS (como o Python treinou)
         let pos_idx: HashMap<&str, u8> = ALL_POS.iter()
             .enumerate().map(|(i, p)| (*p, i as u8)).collect();
-
-        // mapeia cada label do CRF pro índice em ALL_POS
         let crf_to_allpos: Vec<u8> = crf.labels.iter()
             .map(|l| *pos_idx.get(l.as_str()).unwrap_or(&0))
             .collect();
@@ -85,11 +79,42 @@ impl Tagger {
 
     pub fn tag(&self, text: &str) -> Vec<Token> {
         let tokens = tokenize_mwt(text);
-        if tokens.is_empty() { return vec![]; }
+        self.tag_tokens(&tokens)
+    }
+
+    /// Igual a `tag`, mas a saída preserva os MWT de superfície
+    /// (`do` fica `do`, não `de` + `o`).
+    pub fn tag_surface(&self, text: &str) -> Vec<Token> {
+        let surface: Vec<String> = crate::tokenizer::PAT
+            .find_iter(text)
+            .map(|m| m.as_str().to_string())
+            .collect();
+        let (tokens, spans) = tokenize_mwt_with_spans(text);
+        let full = self.tag_tokens(&tokens);
+
+        let mut out = Vec::with_capacity(surface.len());
+        for (i, surf) in surface.iter().enumerate() {
+            let (start, _end) = spans[i];
+            let first = &full[start];
+            out.push(Token {
+                word: surf.clone(),
+                upos: first.upos.clone(),
+                diacritic: first.diacritic.clone(),
+                sense: first.sense.clone(),
+                resolver_level: first.resolver_level.clone(),
+            });
+        }
+        out
+    }
+
+    /// Executa o pipeline sobre uma lista de tokens já tokenizados.
+    pub fn tag_tokens(&self, tokens: &[String]) -> Vec<Token> {
+        if tokens.is_empty() {
+            return vec![];
+        }
         let words_l: Vec<String> = tokens.iter().map(|t| t.to_lowercase()).collect();
         let n = tokens.len();
 
-        // -2 = ambíguo (buraco). Senão, índice em ALL_POS.
         let mut enc: Vec<i32> = (0..n)
             .map(|i| self.always.get(&words_l[i]).map(|&x| x as i32).unwrap_or(-2))
             .collect();
@@ -102,12 +127,12 @@ impl Tagger {
                 .map(|i| (i, enc[i]))
                 .collect();
 
-            let feats_all: Vec<Vec<String>> = amb_idx.iter()
-                .map(|&i| self.extract_features(&tokens, &words_l, i, &enc, &anchors))
+            let feats_all: Vec<Vec<String>> = amb_idx
+                .iter()
+                .map(|&i| self.extract_features(tokens, &words_l, i, &enc, &anchors))
                 .collect();
 
             let preds = self.crf.predict(&feats_all);
-            // Converte saída do CRF (índice em crf.labels) → índice em ALL_POS
             for (k, &i) in amb_idx.iter().enumerate() {
                 enc[i] = self.crf_to_allpos[preds[k]] as i32;
             }
@@ -119,7 +144,9 @@ impl Tagger {
             let mut tok = Token {
                 word: tokens[i].clone(),
                 upos,
-                diacritic: None, sense: None, resolver_level: None,
+                diacritic: None,
+                sense: None,
+                resolver_level: None,
             };
             if let Some((d, lvl, sense)) = self.resolver.resolve(&words_l[i], &words_l, i, &enc) {
                 tok.diacritic = Some(d);
@@ -166,11 +193,12 @@ impl Tagger {
             }
             None => (0.0, -1),
         };
+        let n_labels = self.crf.labels.len();
         let cm: i64 = match self.ambig.get(w) {
             Some(ids) => ids.iter().fold(0i64, |acc, &x| acc | (1i64 << x)),
             None => match self.prior.get(w) {
                 Some(v) => v.iter().fold(0i64, |acc, &(x, _)| acc | (1i64 << x)),
-                None => (1i64 << ALL_POS.len()) - 1,
+                None => (1i64 << n_labels) - 1,
             },
         };
 
