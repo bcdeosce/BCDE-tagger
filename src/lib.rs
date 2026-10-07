@@ -22,4 +22,4 @@ pub mod tokenizer;
 pub use crf::Crf;
 pub use resolver::Resolver;
 pub use tagger::{Tagger, Token, ALL_POS};
-pub use tokenizer::tokenize_mwt;
+pub use tokenizer::{tokenize_mwt, tokenize_mwt_with_spans};
