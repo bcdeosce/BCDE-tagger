@@ -196,13 +196,73 @@ grande  ADJ
 
 ### Biblioteca Rust
 
-```rust
-use tagger::Tagger;
+### Biblioteca Rust
 
-let tagger = Tagger::load("data")?;
-let tokens = tagger.tag("A sede da empresa é grande.");
-for t in tokens {
-    println!("{}\t{}\t{:?}", t.word, t.upos, t.diacritic);
+Adicione ao `Cargo.toml` do seu projeto:
+
+```toml
+[dependencies]
+bcde-tagger = { git = "https://github.com/bcdeosce/BCDE-tagger" }
+```
+
+Ou, se o crate estiver publicado no crates.io:
+
+```toml
+[dependencies]
+bcde-tagger = "0.1.0"
+```
+
+Código:
+
+```rust
+use bcde_tagger::Tagger;
+
+fn main() -> std::io::Result<()> {
+    let tagger = Tagger::load("data")?;
+    let tokens = tagger.tag("A sede da empresa é grande.");
+
+    for t in tokens {
+        println!("{}\t{}\t{:?}", t.word, t.upos, t.diacritic);
+    }
+    Ok(())
+}
+```
+
+> O pacote se chama `bcde-tagger` (com hífen) no `Cargo.toml`, mas o identificador para `use` é `bcde_tagger` (com underscore). Isso é uma regra do Rust: nomes de pacote aceitam hífen, mas identificadores de módulo não. O Cargo faz a conversão automaticamente.
+
+#### API pública
+
+| Item | Descrição |
+|------|-----------|
+| `Tagger::load(base: &str) -> io::Result<Tagger>` | Carrega os 4 JSONs do diretório `base` |
+| `Tagger::tag(&self, text: &str) -> Vec<Token>` | Processa uma frase |
+| `Tagger::tag_batch(&self, texts: &[String]) -> Vec<Vec<Token>>` | Processa várias frases |
+| `Token` | `{ word: String, upos: String, diacritic: Option<String>, sense: Option<String>, resolver_level: Option<String> }` |
+| `tokenize_mwt(text: &str) -> Vec<String>` | Tokenizador isolado |
+| `ALL_POS: &[&str]` | As 17 classes UD na ordem canônica |
+
+#### Uso como serviço
+
+Como o `Tagger` é `Send + Sync`, pode ser compartilhado entre threads:
+
+```rust
+use bcde_tagger::Tagger;
+use std::sync::Arc;
+use std::thread;
+
+let tagger = Arc::new(Tagger::load("data")?);
+
+let mut handles = vec![];
+for i in 0..4 {
+    let t = Arc::clone(&tagger);
+    handles.push(thread::spawn(move || {
+        t.tag(&format!("Frase {}", i))
+    }));
+}
+
+for h in handles {
+    let tokens = h.join().unwrap();
+    // ...
 }
 ```
 
