@@ -1,44 +1,89 @@
+<div align="center">
+
+<img src="BCDE.png" alt="BCDE-tagger" width="400"/>
+
 # BCDE-tagger
 
-Um POS-tagger rápido e leve para português brasileiro, com desambiguação de homógrafos e diacríticos. Zero dependências neurais em produção. Roda em Rust (binário de 2.3 MB) ou Python.
+**POS tagging e desambiguação de homógrafos para português brasileiro.**
+
+Tagger rápido, determinístico e sem dependências neurais — CRF linear + tabelas + resolver de diacríticos.
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
+[![Accuracy POS](https://img.shields.io/badge/POS-98.72%25-success.svg)]()
+[![Accuracy Diacríticos](https://img.shields.io/badge/diacr%C3%ADticos-98.01%25-success.svg)]()
+[![Throughput](https://img.shields.io/badge/throughput-9.7k%20frases%2Fs-blueviolet.svg)]()
+
+</div>
 
 ---
 
-## O que é
+## Sumário
 
-O BCDE-tagger é uma **destilação de conhecimento** de modelos como o stanza e a biblioteca bifonia do tigre gótico. Ele combina:
+- [Sobre](#sobre)
+- [Por que existe](#por-que-existe)
+- [Funcionalidades](#funcionalidades)
+- [Arquitetura](#arquitetura)
+- [Estrutura do repositório](#estrutura-do-repositório)
+- [Instalação](#instalação)
+- [Uso](#uso)
+- [Formato de saída](#formato-de-saída)
+- [Acurácia](#acurácia)
+- [Benchmarks](#benchmarks)
+- [Tokenização](#tokenização)
+- [Desambiguação de homógrafos](#desambiguação-de-homógrafos)
+- [Datasets e fontes](#datasets-e-fontes)
+- [Limitações](#limitações)
+- [Licença](#licença)
+- [Citação](#citação)
+- [Agradecimentos](#agradecimentos)
 
-- **CRF linear** treinado em 1.5M sentenças anotadas
+---
+
+## Sobre
+
+O `BCDE-tagger` é um **POS-tagger rápido e leve** para português brasileiro, com desambiguação de homógrafos e diacríticos. Zero dependências neurais em produção.
+
+Roda em:
+
+- **Rust** — binário de ~2.3 MB, single-thread, sem runtime externo
+- **Python** — via binding sobre o binário
+
+O tagger é uma **destilação de conhecimento** de modelos como o Stanza e a biblioteca [Bifonia](https://github.com/TigreGotico/bifonia) do Tigre Gotico. Ele combina:
+
+- **CRF linear** treinado em ~1.5M sentenças anotadas
 - **Tabelas determinísticas** para casos de cobertura total
 - **Resolver de diacríticos** por backoff hierárquico de 7 níveis
 
 O resultado é um tagger que roda a **~9.700 frases/s** em single-thread, com **98.72% de acurácia POS** e **98.01% de acurácia em diacríticos**.
 
-### Motivação
+---
+
+## Por que existe
 
 O projeto nasceu da necessidade de um POS-tagger para TTS (text-to-speech) em português brasileiro, que fosse:
 
-- **Rápido o suficiente** para rodar em tempo real sem GPU
-- **Pequeno o suficiente** para embarcar em binários de aplicações
-- **Preciso o suficiente** para desambiguar homógrafos como `sede` (seat/thirst), `forma` (shape/mould), `molho` (sauce/bundle) e manter a naturalidade. ou seja um trade-off aceitável.
+- **Rápido** o suficiente para rodar em tempo real sem GPU
+- **Pequeno** o suficiente para embarcar em binários de aplicações
+- **Preciso** o suficiente para desambiguar homógrafos como `sede` (seat/thirst), `forma` (shape/mould), `molho` (sauce/bundle) e manter a naturalidade do áudio
 
-A biblioteca [bifonia](https://github.com/TigreGotico/bifonia) do [Tigre Gotico](https://github.com/TigreGotico) provou que POS tagging sozinho não resolve homógrafos que compartilham a mesma classe gramatical. O BCDE-tagger foi construído para resolver esse problema com contexto rico e desambiguação por sentidos (assim como bifonia), mas de uma forma simplificada.
+A biblioteca [Bifonia](https://github.com/TigreGotico/bifonia) provou que POS tagging sozinho não resolve homógrafos que compartilham a mesma classe gramatical. O `BCDE-tagger` foi construído para resolver esse problema com contexto rico e desambiguação por sentidos — mas de forma simplificada.
 
 ---
 
 ## Funcionalidades
 
-| função | descrição |
-|---|---|
-| `tag(text)` | retorna lista de tokens com POS, diacrítico e sentido |
-| `tag_batch(texts)` | processa lista de textos em paralelo |
-| **POS tagging** | 17 classes Universal Dependencies |
-| **MWT expansion** | 80 contrações expandidas automaticamente |
-| **Diacrítico** | 131 homógrafos desambiguados por contexto |
-| **Sentido** | label semântico (`seat`, `thirst`, `hair`, etc.) |
-| **CLI** | `echo "frase" \| ./bcde-tagger data` |
-| **Biblioteca Rust** | crate importável |
-| **Binding Python** | via subprocess ou reimplementação |
+| Função | Descrição |
+|--------|-----------|
+| `tag(text)` | Lista de tokens com POS, diacrítico e sentido |
+| `tag_batch(texts)` | Processa lista de textos em paralelo |
+| POS tagging | 17 classes Universal Dependencies |
+| MWT expansion | 80 contrações expandidas automaticamente |
+| Diacrítico | 131 homógrafos desambiguados por contexto |
+| Sentido | Label semântico (`seat`, `thirst`, `hair`, etc.) |
+| CLI | `echo "frase" \| ./bcde-tagger data` |
+| Biblioteca Rust | Crate importável |
+| Binding Python | Via subprocess ou reimplementação |
 
 ---
 
@@ -46,17 +91,23 @@ A biblioteca [bifonia](https://github.com/TigreGotico/bifonia) do [Tigre Gotico]
 
 ```
 texto cru
-    ↓
-[tokenizer.rs]       regex + expansão MWT
-    ↓
+    │
+    ▼
+[tokenizer.rs]              regex + expansão MWT
+    │
+    ▼
 [tabelas always/never/prior]   ← 56.7% dos tokens resolvidos aqui
-    ↓
+    │
+    ▼
 [extração de features]          ← 45 features por token ambíguo
-    ↓
+    │
+    ▼
 [crf.rs] Viterbi                ← 41.8% dos tokens ambíguos
-    ↓
+    │
+    ▼
 [resolver.rs] backoff 7 níveis  ← diacríticos para homógrafos
-    ↓
+    │
+    ▼
 saída: POS + diacrítico + sentido
 ```
 
@@ -68,22 +119,22 @@ saída: POS + diacrítico + sentido
 
 ```
 BCDE-tagger/
-├── Cargo.toml              # dependências: regex, serde, once_cell
-├── LICENSE                 # MIT
+├── Cargo.toml                    # deps: regex, serde, once_cell
+├── LICENSE                       # MIT
 ├── README.md
 ├── data/
-│   ├── tabelas_v3.json     # tabelas always/never/prior/ambig (40 MB)
-│   ├── crf_weights.json    # pesos do CRF exportados (62 MB)
-│   ├── resolver_v7.json    # resolver de diacríticos (5 MB)
-│   └── diacriticos_table.json  # 131 homógrafos → sentido (50 KB)
+│   ├── tabelas_v3.json           # always/never/prior/ambig (40 MB)
+│   ├── crf_weights.json          # pesos do CRF (62 MB)
+│   ├── resolver_v7.json          # resolver de diacríticos (5 MB)
+│   └── diacriticos_table.json    # 131 homógrafos → sentido (50 KB)
 ├── python/
-│   └── tagger_python.py    # binding Python via subprocess
+│   └── tagger_python.py          # binding Python via subprocess
 └── src/
-    ├── main.rs             # CLI: lê stdin, escreve stdout
-    ├── tagger.rs           # orquestração + extração de features
-    ├── tokenizer.rs        # regex + expansão MWT
-    ├── crf.rs              # Viterbi
-    └── resolver.rs         # backoff de diacríticos
+    ├── main.rs                   # CLI: lê stdin, escreve stdout
+    ├── tagger.rs                 # orquestração + extração de features
+    ├── tokenizer.rs              # regex + expansão MWT
+    ├── crf.rs                    # Viterbi
+    └── resolver.rs               # backoff de diacríticos
 ```
 
 ---
@@ -107,12 +158,13 @@ O binário fica em `target/release/bcde-tagger` (~2.3 MB).
 cargo build --release
 
 # Use via subprocess
-python python/bcde-tagger_python.py "A sede da empresa é grande."
+python python/tagger_python.py "A sede da empresa é grande."
 ```
 
 ### Dependências
 
 **Rust:**
+
 - `regex` — tokenização
 - `serde` + `serde_json` — desserialização dos JSONs
 - `once_cell` — lazy statics
@@ -130,6 +182,7 @@ echo "A sede da empresa é grande." | ./target/release/bcde-tagger data
 ```
 
 Saída:
+
 ```
 A       DET
 sede    NOUN    diac=séde      sense=seat     via=pw
@@ -141,7 +194,7 @@ grande  ADJ
 .       PUNCT
 ```
 
-### Rust library
+### Biblioteca Rust
 
 ```rust
 use tagger::Tagger;
@@ -185,13 +238,13 @@ t.tag_batch(["frase 1", "frase 2", "frase 3"])
 
 Cada token é um dict com 2 campos sempre e 3 extras para homógrafos.
 
-| campo | sempre? | descrição |
-|---|---|---|
-| `word` | ✓ | token de superfície |
-| `upos` | ✓ | classe POS (17 UD) |
-| `diacritic` | homógrafos | forma acentuada (`séde`, `sêde`, `pôrto`) |
-| `sense` | homógrafos | label semântico (`seat`, `thirst`, `harbour`) |
-| `resolver_level` | homógrafos | `full`, `pw`, `prev`, `next`, `cls`, `upos`, `prior` |
+| Campo | Sempre? | Descrição |
+|-------|:-------:|-----------|
+| `word` | ✓ | Token de superfície |
+| `upos` | ✓ | Classe POS (17 UD) |
+| `diacritic` | Homógrafos | Forma acentuada (`séde`, `sêde`, `pôrto`) |
+| `sense` | Homógrafos | Label semântico (`seat`, `thirst`, `harbour`) |
+| `resolver_level` | Homógrafos | `full`, `pw`, `prev`, `next`, `cls`, `upos`, `prior` |
 
 ---
 
@@ -199,18 +252,18 @@ Cada token é um dict com 2 campos sempre e 3 extras para homógrafos.
 
 ### POS global
 
-| split | frases | tokens | acurácia |
-|---|---|---|---|
-| train | 200.000 | 2.534.159 | **98.96%** |
-| val | 110.007 | 1.439.572 | **98.72%** |
-| test | 110.546 | 1.448.986 | **98.72%** |
+| Split | Frases | Tokens | Acurácia |
+|-------|-------:|-------:|:--------:|
+| Train | 200.000 | 2.534.159 | **98.96%** |
+| Val | 110.007 | 1.439.572 | **98.72%** |
+| Test | 110.546 | 1.448.986 | **98.72%** |
 
 Sem overfitting — train e val próximos.
 
 ### POS por classe (val)
 
-| classe | n | acc | classe | n | acc |
-|---|---|---|---|---|---|
+| Classe | n | Acc | Classe | n | Acc |
+|--------|---:|:---:|--------|---:|:---:|
 | NOUN | 359.330 | 98.77% | ADP | 180.278 | 99.66% |
 | PROPN | 9.316 | 86.39% | CCONJ | 22.879 | 99.97% |
 | VERB | 180.038 | 98.49% | SCONJ | 38.599 | 93.63% |
@@ -222,16 +275,16 @@ Sem overfitting — train e val próximos.
 
 ### Diacríticos (val)
 
-| split | anotações | acertos | acurácia |
-|---|---|---|---|
-| train | 80.319 | 77.858 | 96.94% |
-| val | 35.064 | 34.366 | **98.01%** |
-| test | 34.901 | 34.192 | **97.97%** |
+| Split | Anotações | Acertos | Acurácia |
+|-------|----------:|--------:|:--------:|
+| Train | 80.319 | 77.858 | 96.94% |
+| Val | 35.064 | 34.366 | **98.01%** |
+| Test | 34.901 | 34.192 | **97.97%** |
 
 ### Diacríticos por palavra (val, n ≥ 100)
 
-| palavra | n | acc | palavra | n | acc |
-|---|---|---|---|---|---|
+| Palavra | n | Acc | Palavra | n | Acc |
+|---------|---:|:---:|---------|---:|:---:|
 | gosto | 167 | 86.2% | aceno | 121 | 94.2% |
 | colmo | 118 | 89.8% | troco | 106 | 94.3% |
 | sossego | 75 | 90.7% | desacordo | 126 | 94.4% |
@@ -259,14 +312,14 @@ Sem overfitting — train e val próximos.
 
 ### Nível de confiança do resolver (val)
 
-| nível | acertos | % |
-|---|---|---|
-| full | 14.410 | 41,9% |
-| pw | 11.351 | 33,0% |
-| prev | 7.202 | 21,0% |
-| next | 1.301 | 3,8% |
-| cls | 88 | 0,3% |
-| upos | 14 | 0,04% |
+| Nível | Acertos | % |
+|-------|--------:|--:|
+| full | 14.410 | 41.9% |
+| pw | 11.351 | 33.0% |
+| prev | 7.202 | 21.0% |
+| next | 1.301 | 3.8% |
+| cls | 88 | 0.3% |
+| upos | 14 | 0.04% |
 | prior | 0 | 0% |
 
 96% dos acertos vêm dos 3 níveis mais específicos.
@@ -279,23 +332,23 @@ Ambiente: Google Colab, single-thread.
 
 ### Modelo
 
-| etapa | ms/frase | palavras/s |
-|---|---|---|
+| Etapa | ms/frase | palavras/s |
+|-------|:--------:|-----------:|
 | features + CRF | 0.185 | 72.207 |
 | + resolver | 0.195 | 68.465 |
 | batch | 0.196 | 68.081 |
 
 ### Tokenizador
 
-| tokenizador | ms/frase | palavras/s |
-|---|---|---|
+| Tokenizador | ms/frase | palavras/s |
+|-------------|:--------:|-----------:|
 | Stanza (batch 64) | 1.322 | 10.117 |
 | regex+MWT | 0.020 | ~50.000 |
 
 ### End-to-end
 
-| configuração | ms/frase | frases/s |
-|---|---|---|
+| Configuração | ms/frase | frases/s |
+|--------------|:--------:|---------:|
 | Stanza, sem batch | 12.465 | 80 |
 | Stanza, com batch | 1.448 | 690 |
 | **regex+MWT (1 thread)** | **0.103** | **9.722** |
@@ -303,8 +356,8 @@ Ambiente: Google Colab, single-thread.
 
 ### Estimativas práticas
 
-| volume | tempo (1 worker) |
-|---|---|
+| Volume | Tempo (1 worker) |
+|--------|:----------------:|
 | 1.000 frases | 0.10 s |
 | 10.000 frases | 1.03 s |
 | 100.000 frases | 10.29 s |
@@ -318,24 +371,26 @@ Ambiente: Google Colab, single-thread.
 O tokenizador é regex + expansão estática de contrações (MWT).
 
 **Regex base:**
+
 ```
 d'|\w+(?:[-']\w+)*|[^\w\s]
 ```
 
 **Expansão MWT** (~80 contrações):
 
-| entrada | saída |
-|---|---|
+| Entrada | Saída |
+|---------|-------|
 | `do` | `de` + `o` |
 | `pelo` | `por` + `o` |
 | `à` | `a` + `a` |
 | `nesta` | `em` + `esta` |
 
 **Regra de ambiguidade:** `nos` e `vos` só expandem se não forem pronome.
+
 - `nos abandalhemo` → `nos` (pronome)
 - `nos carros` → `em` + `os` (contração)
 
-**Concordância com Stanza:** 99,75% em 2.000 frases do val. As divergências são apenas `d' água`, pronome `nos` e abreviações.
+**Concordância com Stanza:** 99.75% em 2.000 frases do val. As divergências são apenas `d' água`, pronome `nos` e abreviações.
 
 ---
 
@@ -343,19 +398,19 @@ d'|\w+(?:[-']\w+)*|[^\w\s]
 
 O resolver v7 usa **backoff hierárquico de 7 níveis**:
 
-| nível | chave | min_count |
-|---|---|---|
+| Nível | Chave | min_count |
+|-------|-------|:---------:|
 | full | `(upos, prev_w, next_w, prev_u, next_u, prev2_w, next2_w)` | 3 |
 | pw | `(upos, prev_w, next_w)` | 3 |
 | prev | `(upos, prev_w)` | 2 |
 | next | `(upos, next_w)` | 2 |
 | cls | `(upos, prev_u, next_u)` | 3 |
 | upos | `(upos,)` | 2 |
-| prior | forma majoritária global | — |
+| prior | Forma majoritária global | — |
 
 **122 palavras** têm resolver treinado (das 131 da tabela).
 
-**Exemplo:**
+**Exemplos:**
 
 ```
 A sede da empresa é grande.
@@ -377,40 +432,40 @@ Ele foi pelo caminho mais longo.
 
 ### Corpus de treino
 
-| dataset | frases | origem |
-|---|---|---|
+| Dataset | Frases | Origem |
+|---------|-------:|--------|
 | `dataset_final.jsonl` | 1.621.269 | Bosque + fontes antigas |
-| `dataset_val_bifonia_sentencas.jsonl` | 500.000 | Bifonia + sentenças sinteticas |
+| `dataset_val_bifonia_sentencas.jsonl` | 500.000 | Bifonia + sentenças sintéticas |
 
 **Dataset unificado:** 2.202.947 frases (após deduplicação), 28.882.948 tokens, 906.848 com anotação de sentido.
 
 ### Fontes lexicais
 
-| fonte | licença | uso |
-|---|---|---|
-| [fserb/pt-br](https://github.com/fserb/pt-br) | MIT | conjugações, verbos, léxico |
-| [ime.usp.br/~pf/dicios](https://www.ime.usp.br/~pf/dicios/) | CC BY | lista de palavras |
-| [Portal da Língua Portuguesa](https://www.portaldalinguaportuguesa.org/) | livre acesso | scraping de palavras |
-| [TigreGotico/bifonia](https://github.com/TigreGotico/bifonia) | CC BY-SA 4.0 | validação de homógrafos |
-| [bifonia-pt-homographs](https://huggingface.co/datasets/TigreGotico/bifonia-pt-homographs) | CC BY-SA 4.0 | dataset de validação |
-| [UD Portuguese Bosque](https://universaldependencies.org/treebanks/pt_bosque/) | CC BY-SA 4.0 | anotação POS |
+| Fonte | Licença | Uso |
+|-------|:-------:|-----|
+| [fserb/pt-br](https://github.com/fserb/pt-br) | MIT | Conjugações, verbos, léxico |
+| [ime.usp.br/~pf/dicios](https://www.ime.usp.br/~pf/dicios/) | CC BY | Lista de palavras |
+| [Portal da Língua Portuguesa](https://www.portaldalinguaportuguesa.org/) | Livre acesso | Scraping de palavras |
+| [TigreGotico/bifonia](https://github.com/TigreGotico/bifonia) | CC BY-SA 4.0 | Validação de homógrafos |
+| [bifonia-pt-homographs](https://huggingface.co/datasets/TigreGotico/bifonia-pt-homographs) | CC BY-SA 4.0 | Dataset de validação |
+| [UD Portuguese Bosque](https://universaldependencies.org/treebanks/pt_bosque/) | CC BY-SA 4.0 | Anotação POS |
 
 ### Anotação
 
-As frases foram geradas sinteticamente a partir de sementes de palavras homógrafas + listas de palavras únicas, enviadas em lotes para geração de frases naturais. Foram geradas mais de **1,6 milhões de sentenças** entre 40 e 180 caracteres, posteriormente anotadas pelo **Bifonia** (sentidos) + **Stanza** (POS).
+As frases foram geradas sinteticamente a partir de sementes de palavras homógrafas + listas de palavras únicas, enviadas em lotes para geração de frases naturais. Foram geradas mais de **1.6 milhões de sentenças** entre 40 e 180 caracteres, posteriormente anotadas pelo **Bifonia** (sentidos) + **Stanza** (POS).
 
-**Nota:** muitas frases têm estrutura robótica, mas a variedade de contextos é suficiente para o CRF aprender os padrões de desambiguação.
+> Muitas frases têm estrutura robótica, mas a variedade de contextos é suficiente para o CRF aprender os padrões de desambiguação.
 
 ### Tabelas
 
 Três tabelas construídas sobre o corpus unificado:
 
-| tabela | conteúdo | tamanho |
-|---|---|---|
-| `always_X` | palavras 100% X (min_count=10) | 14.022 (NOUN) a 2 (SCONJ) |
-| `never_X` | palavras nunca X (min_count=10) | ~55K por classe |
-| `prior` | distribuição de POS por palavra | 203K palavras |
-| `ambig` | grupos de ambiguidade | 12.069 palavras |
+| Tabela | Conteúdo | Tamanho |
+|--------|----------|--------:|
+| `always_X` | Palavras 100% X (min_count=10) | 14.022 (NOUN) a 2 (SCONJ) |
+| `never_X` | Palavras nunca X (min_count=10) | ~55K por classe |
+| `prior` | Distribuição de POS por palavra | 203K palavras |
+| `ambig` | Grupos de ambiguidade | 12.069 palavras |
 
 ---
 
@@ -431,7 +486,7 @@ Três tabelas construídas sobre o corpus unificado:
 ### Tokenizador
 
 - **MWT ambíguo** — `nos` pode ser pronome ou contração, resolvido por heurística.
-- **Dígitos e símbolos** — `20h`, `R$`, `2.5` podem divergir do Stanza (~0,1%).
+- **Dígitos e símbolos** — `20h`, `R$`, `2.5` podem divergir do Stanza (~0.1%).
 - **Abreviações** — `B.` (letra + ponto) — Stanza une, regex separa.
 
 ### O que o modelo NÃO faz
@@ -440,26 +495,28 @@ Três tabelas construídas sobre o corpus unificado:
 - Parsing (dependências sintáticas)
 - Lematização
 - Desambiguação semântica geral (só para os 131 homógrafos)
-- Texto informal (internetês, `vc`, `q`, `pq`)
+- Texto informal (internetês: `vc`, `q`, `pq`)
 - Outras variantes (pt-PT)
 
 ---
 
 ## Licença
 
-MIT. Veja [LICENSE](LICENSE).
+**MIT**. Veja [LICENSE](LICENSE).
 
 ### Atribuições
 
 Partes do inventário lexical derivam de fontes com licenças específicas:
 
-- `fserb/pt-br` — MIT
-- `ime.usp.br/~pf/dicios` — CC BY
-- `TigreGotico/bifonia` — CC BY-SA 4.0
-- `UD Portuguese Bosque` — CC BY-SA 4.0
-- Portal da Língua Portuguesa — livre acesso
+| Fonte | Licença |
+|-------|:-------:|
+| `fserb/pt-br` | MIT |
+| `ime.usp.br/~pf/dicios` | CC BY |
+| `TigreGotico/bifonia` | CC BY-SA 4.0 |
+| `UD Portuguese Bosque` | CC BY-SA 4.0 |
+| Portal da Língua Portuguesa | Livre acesso |
 
-O modelo treinado (CRF, tabelas, resolver) é um artefato derivado desses dados. Embora o código seja MIT, os **dados** mantêm suas licenças originais. Ao redistribuir, atribua as fontes conforme suas licenças.
+O modelo treinado (CRF, tabelas, resolver) é um artefato derivado desses dados. Embora o **código** seja MIT, os **dados** mantêm suas licenças originais. Ao redistribuir, atribua as fontes conforme suas licenças.
 
 ---
 
@@ -483,3 +540,11 @@ O modelo treinado (CRF, tabelas, resolver) é um artefato derivado desses dados.
 - [Paulo Feofiloff](https://www.ime.usp.br/~pf/) — pela lista de palavras do português brasileiro
 - [Universal Dependencies](https://universaldependencies.org/) — pelo treebank Bosque
 - Comunidade Stanza — pela anotação inicial do corpus
+
+---
+
+<div align="center">
+
+Feito com ❤️ para a comunidade pt-BR.
+
+</div>
