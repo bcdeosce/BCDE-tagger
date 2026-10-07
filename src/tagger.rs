@@ -82,6 +82,36 @@ impl Tagger {
         self.tag_tokens(&tokens)
     }
 
+    /// Recebe texto cru e devolve o mesmo texto com diacríticos aplicados
+    /// nas palavras que o resolver souber desambiguar.
+    /// Preserva pontuação, espaços e a superfície original (MWT não são expandidos na saída).
+    pub fn diacritize(&self, text: &str) -> String {
+        let (tokens, spans) = tokenize_mwt_with_spans(text);
+        let tags = self.tag_tokens(&tokens);
+
+        let mut out = String::with_capacity(text.len());
+        let mut last_end = 0;
+        let mut surf_idx = 0;
+
+        for m in crate::tokenizer::PAT.find_iter(text) {
+            out.push_str(&text[last_end..m.start()]);
+
+            let (start, _end) = spans[surf_idx];
+            let tag = &tags[start];
+            let word = match &tag.diacritic {
+                Some(d) => d.as_str(),
+                None => m.as_str(),
+            };
+            out.push_str(word);
+
+            last_end = m.end();
+            surf_idx += 1;
+        }
+        out.push_str(&text[last_end..]);
+        out
+    }
+
+    
     /// Igual a `tag`, mas a saída preserva os MWT de superfície
     /// (`do` fica `do`, não `de` + `o`).
     pub fn tag_surface(&self, text: &str) -> Vec<Token> {
