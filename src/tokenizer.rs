@@ -2,7 +2,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
-static PAT: Lazy<Regex> = Lazy::new(|| {
+pub(crate) static PAT: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"d'|\w+(?:[-']\w+)*|[^\w\s]").unwrap()
 });
 
@@ -89,4 +89,38 @@ pub fn tokenize_mwt(text: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// Retorna (tokens_expandidos, spans).
+/// Cada `span[i]` = (start, end) em `tokens_expandidos` do i-ésimo token de superfície.
+pub fn tokenize_mwt_with_spans(text: &str) -> (Vec<String>, Vec<(usize, usize)>) {
+    let surface: Vec<&str> = PAT.find_iter(text).map(|m| m.as_str()).collect();
+    let mut tokens: Vec<String> = Vec::new();
+    let mut spans: Vec<(usize, usize)> = Vec::new();
+    for (i, t) in surface.iter().enumerate() {
+        let low = t.to_lowercase();
+        let start = tokens.len();
+        match MWT.get(low.as_str()) {
+            None => tokens.push(t.to_string()),
+            Some(exp) => {
+                let mut expandiu = true;
+                if low == "nos" {
+                    if prev_sujeito(&surface, i)
+                        || (i + 1 < surface.len() && next_verb(surface[i + 1]))
+                    {
+                        expandiu = false;
+                    }
+                } else if prev_sujeito(&surface, i) {
+                    expandiu = false;
+                }
+                if expandiu {
+                    tokens.extend(exp.iter().map(|s| s.to_string()));
+                } else {
+                    tokens.push(t.to_string());
+                }
+            }
+        }
+        spans.push((start, tokens.len()));
+    }
+    (tokens, spans)
 }
