@@ -5,12 +5,13 @@
 //! ```no_run
 //! use bcde_tagger::Tagger;
 //!
+//! # fn main() -> std::io::Result<()> {
 //! let tagger = Tagger::load("data")?;
-//! let tokens = tagger.tag("A sede da empresa é grande.");
-//! for t in tokens {
+//! for t in tagger.tag("A sede da empresa é grande.") {
 //!     println!("{}\t{}\t{:?}", t.word, t.upos, t.diacritic);
 //! }
-//! # Ok::<(), std::io::Error>(())
+//! # Ok(())
+//! # }
 //! ```
 
 pub mod crf;
