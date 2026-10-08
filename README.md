@@ -75,25 +75,26 @@ A biblioteca [Bifonia](https://github.com/TigreGotico/bifonia) provou que POS ta
 
 | Função | Descrição |
 |--------|-----------|
-| `tag(text)` | Lista de tokens com POS, diacrítico e sentido |
+| `tag(text)` | Lista de tokens com POS, diacrítico e sentido (MWT expandido) |
+| `tag_surface(text)` | Idem, mas MWT preservados (`do`, `pelo` como token único) |
+| `tag_tokens(tokens)` | Pipeline direto sobre tokens já tokenizados |
+| `diacritize(text)` | Texto com diacríticos aplicados (`sede` → `séde`/`sêde`) |
 | `tag_batch(texts)` | Processa lista de textos em paralelo |
 | POS tagging | 17 classes Universal Dependencies |
 | MWT expansion | 80 contrações expandidas automaticamente |
 | Diacrítico | 131 homógrafos desambiguados por contexto |
 | Sentido | Label semântico (`seat`, `thirst`, `hair`, etc.) |
-| CLI | `echo "frase" \| ./bcde-tagger data` |
-| Biblioteca Rust | Crate importável |
-| Binding Python | Via subprocess ou reimplementação |
+| CLI | `echo "frase" \| ./bcde-tagger data [--surface\|--diacritize]` |
+| Biblioteca Rust | Crate importável (`use bcde_tagger::Tagger`) |
+| Binding Python | Via subprocess com processo persistente |
 
 ---
-
-## Arquitetura
 
 ```
 texto cru
     │
     ▼
-[tokenizer.rs]              regex + expansão MWT
+[tokenizer.rs]              regex + expansão MWT (com heurística pra MWT ambíguos)
     │
     ▼
 [tabelas always/never/prior]   ← 56.7% dos tokens resolvidos aqui
@@ -107,8 +108,9 @@ texto cru
     ▼
 [resolver.rs] backoff 7 níveis  ← diacríticos para homógrafos
     │
-    ▼
-saída: POS + diacrítico + sentido
+    ├──► tag():         Vec<Token> com MWT expandido
+    ├──► tag_surface(): Vec<Token> com MWT preservado
+    └──► diacritize():  String com diacríticos aplicados
 ```
 
 **Cobertura:** 56.7% dos tokens são resolvidos por consulta direta a tabelas (zero custo). 41.8% passam pelo CRF. 1.5% caem em regras genéricas.
@@ -123,13 +125,14 @@ BCDE-tagger/
 ├── LICENSE                       # MIT
 ├── README.md
 ├── data/
-│   ├── tabelas_v3.json           # always/never/prior/ambig (40 MB)
-│   ├── crf_weights.json          # pesos do CRF (62 MB)
-│   ├── resolver_v7.json          # resolver de diacríticos (5 MB)
+│   ├── tabelas_v3.json           # always/never/prior/ambig (17 MB)
+│   ├── crf_weights.json          # pesos do CRF (14 MB)
+│   ├── resolver_v7.json          # resolver de diacríticos (3 MB)
 │   └── diacriticos_table.json    # 131 homógrafos → sentido (50 KB)
 ├── python/
 │   └── tagger_python.py          # binding Python via subprocess
 └── src/
+    ├── lib.rs                    # ponto de entrada da biblioteca
     ├── main.rs                   # CLI: lê stdin, escreve stdout
     ├── tagger.rs                 # orquestração + extração de features
     ├── tokenizer.rs              # regex + expansão MWT
@@ -178,14 +181,21 @@ Nenhuma dependência neural. Nenhum runtime C++. Nenhuma GPU.
 ### CLI
 
 ```bash
+# Modo padrão — tokens expandidos (MWT decomposto)
 echo "A sede da empresa é grande." | ./target/release/bcde-tagger data
+
+# Modo superfície — MWT preservado (do, pelo, deste como token único)
+echo "O pelo do gato é macio." | ./target/release/bcde-tagger data --surface
+
+# Modo diacritize — só texto com diacríticos aplicados
+echo "A sede da empresa é grande." | ./target/release/bcde-tagger data --diacritize
 ```
 
-Saída:
+Saída modo padrão (MWT expandido):
 
 ```
 A       DET
-sede    NOUN    diac=séde      sense=seat     via=pw
+sede    NOUN    diac=séde      sense=seat     via=full
 de      ADP
 a       DET
 empresa NOUN
@@ -194,7 +204,23 @@ grande  ADJ
 .       PUNCT
 ```
 
-### Biblioteca Rust
+Saída `--surface` (MWT preservado, UPOS do primeiro componente):
+
+```
+O       DET
+pelo    NOUN    diac=pêlo      sense=hair     via=pw
+do      ADP
+gato    NOUN
+é       AUX
+macio   ADJ
+.       PUNCT
+```
+
+Saída `--diacritize` (texto → texto):
+
+```
+A séde da empresa é grande.
+```
 
 ### Biblioteca Rust
 
@@ -219,11 +245,21 @@ use bcde_tagger::Tagger;
 
 fn main() -> std::io::Result<()> {
     let tagger = Tagger::load("data")?;
-    let tokens = tagger.tag("A sede da empresa é grande.");
 
-    for t in tokens {
+    // POS + diacríticos + sentidos (MWT expandido)
+    for t in tagger.tag("A sede da empresa é grande.") {
         println!("{}\t{}\t{:?}", t.word, t.upos, t.diacritic);
     }
+
+    // MWT preservado na saída (do, pelo, deste como token único)
+    for t in tagger.tag_surface("O pelo do gato é macio.") {
+        println!("{}\t{}\t{:?}", t.word, t.upos, t.diacritic);
+    }
+
+    // Só o texto com diacríticos aplicados
+    let texto = tagger.diacritize("Ele tem sede de justiça.");
+    println!("{}", texto);  // "Ele tem sêde de justiça."
+
     Ok(())
 }
 ```
@@ -235,43 +271,21 @@ fn main() -> std::io::Result<()> {
 | Item | Descrição |
 |------|-----------|
 | `Tagger::load(base: &str) -> io::Result<Tagger>` | Carrega os 4 JSONs do diretório `base` |
-| `Tagger::tag(&self, text: &str) -> Vec<Token>` | Processa uma frase |
-| `Tagger::tag_batch(&self, texts: &[String]) -> Vec<Vec<Token>>` | Processa várias frases |
-| `Token` | `{ word: String, upos: String, diacritic: Option<String>, sense: Option<String>, resolver_level: Option<String> }` |
+| `Tagger::tag(&self, text: &str) -> Vec<Token>` | Pipeline completo (MWT expandido) |
+| `Tagger::tag_surface(&self, text: &str) -> Vec<Token>` | Idem, mas MWT preservado |
+| `Tagger::tag_tokens(&self, tokens: &[String]) -> Vec<Token>` | Pipeline direto sobre tokens |
+| `Tagger::diacritize(&self, text: &str) -> String` | Texto com diacríticos aplicados |
+| `Token` | `{ word, upos, diacritic: Option<String>, sense: Option<String>, resolver_level: Option<String> }` |
 | `tokenize_mwt(text: &str) -> Vec<String>` | Tokenizador isolado |
+| `tokenize_mwt_with_spans(text: &str) -> (Vec<String>, Vec<(usize, usize)>)` | Tokenizador com spans |
 | `ALL_POS: &[&str]` | As 17 classes UD na ordem canônica |
-
-#### Uso como serviço
-
-Como o `Tagger` é `Send + Sync`, pode ser compartilhado entre threads:
-
-```rust
-use bcde_tagger::Tagger;
-use std::sync::Arc;
-use std::thread;
-
-let tagger = Arc::new(Tagger::load("data")?);
-
-let mut handles = vec![];
-for i in 0..4 {
-    let t = Arc::clone(&tagger);
-    handles.push(thread::spawn(move || {
-        t.tag(&format!("Frase {}", i))
-    }));
-}
-
-for h in handles {
-    let tokens = h.join().unwrap();
-    // ...
-}
-```
 
 ### Python
 
 ```python
 from tagger_python import Tagger
 
-t = Tagger()  # auto-detecta paths
+t = Tagger()  # auto-detecta paths relativos ao repositório
 
 # Saída completa
 for tok in t.tag("A sede da empresa é grande."):
@@ -284,17 +298,25 @@ for tok in t.tag("A sede da empresa é grande."):
 t.pos_only("A sede da empresa é grande.")
 # ['DET', 'NOUN', 'ADP', 'DET', 'NOUN', 'AUX', 'ADJ', 'PUNCT']
 
-# Com acento correto
-t.tag_with_diacritic("Ele tem sede de justiça.")
-# 'Ele tem sêde de justiça .'
+# Texto com diacríticos aplicados
+t.diacritize("Ele tem sede de justiça.")
+# 'Ele tem sêde de justiça.'
+
+t.diacritize("O pelo do gato é macio.")
+# 'O pêlo do gato é macio.'
+
+# MWT preservado na saída
+t.tag_surface("O pelo do gato é macio.")
+# [{'word': 'O', 'upos': 'DET', ...},
+#  {'word': 'pelo', 'upos': 'NOUN', 'diacritic': 'pêlo', ...}, ...]
 
 # Batch (rápido)
 t.tag_batch(["frase 1", "frase 2", "frase 3"])
 ```
 
----
-
 ## Formato de saída
+
+### Modo `tag` (padrão) e `tag_surface`
 
 Cada token é um dict com 2 campos sempre e 3 extras para homógrafos.
 
@@ -306,67 +328,116 @@ Cada token é um dict com 2 campos sempre e 3 extras para homógrafos.
 | `sense` | Homógrafos | Label semântico (`seat`, `thirst`, `harbour`) |
 | `resolver_level` | Homógrafos | `full`, `pw`, `prev`, `next`, `cls`, `upos`, `prior` |
 
----
+**Diferença entre `tag` e `tag_surface`:**
 
+- `tag`: MWT são **expandidos** na saída (`do` → `de`+`o`, `pelo` → `por`+`o`). O número de tokens de saída pode ser maior que o de entrada.
+- `tag_surface`: MWT são **preservados** (`do`, `pelo`, `deste` como tokens únicos). O UPOS atribuído ao MWT é o do primeiro componente. O número de tokens de saída é igual ao de entrada.
+
+### Modo `diacritize`
+
+Devolve uma **string** — o texto de entrada com diacríticos aplicados nas palavras que o resolver souber desambiguar.
+
+Preserva espaços, pontuação, capitalização e a superfície original (`do`, `pelo`, `à` ficam como estão).
+
+**Exemplos:**
+
+| entrada | saída |
+|---------|-------|
+| `A sede da empresa é grande.` | `A séde da empresa é grande.` |
+| `Ele tem sede de justiça.` | `Ele tem sêde de justiça.` |
+| `O pelo do gato é macio.` | `O pêlo do gato é macio.` |
+| `Ele foi pelo caminho mais longo.` | `Ele foi pelo caminho mais longo.` |
+| `Pelo a cenoura e depois ralo.` | `Pelo a cenoura e depois ralo.` |
+| `O porto de Santos é grande.` | `O pôrto de Santos é grande.` |
+| `Eu porto um documento sempre.` | `Eu pórto um documento sempre.` |
+
+Se a palavra não for um dos 131 homógrafos da tabela, ou se o resolver não souber desambiguar com confiança, a palavra sai inalterada.
 ## Acurácia
 
 ### POS global
 
 | Split | Frases | Tokens | Acurácia |
 |-------|-------:|-------:|:--------:|
-| Train | 200.000 | 2.534.159 | **98.96%** |
-| Val | 110.007 | 1.439.572 | **98.72%** |
-| Test | 110.546 | 1.448.986 | **98.72%** |
+| Val | 110.007 | 1.439.280 | **98,73%** |
+| Test | 110.546 | 1.448.986 | **98,73%** |
 
-Sem overfitting — train e val próximos.
+Sem overfitting — val e test próximos.
 
 ### POS por classe (val)
 
 | Classe | n | Acc | Classe | n | Acc |
 |--------|---:|:---:|--------|---:|:---:|
-| NOUN | 359.330 | 98.77% | ADP | 180.278 | 99.66% |
-| PROPN | 9.316 | 86.39% | CCONJ | 22.879 | 99.97% |
-| VERB | 180.038 | 98.49% | SCONJ | 38.599 | 93.63% |
-| AUX | 34.038 | 99.63% | NUM | 6.044 | 98.31% |
-| ADJ | 79.465 | 95.36% | INTJ | 471 | 49.68% |
-| ADV | 37.220 | 98.56% | PUNCT | 157.502 | 99.99% |
-| PRON | 43.227 | 96.03% | SYM | 59 | 100.00% |
-| DET | 290.899 | 99.84% | X | 185 | 52.97% |
+| NOUN | 359.284 | 98,73% | ADP | 180.261 | 99,61% |
+| PROPN | 9.263 | 86,39% | CCONJ | 22.878 | 99,95% |
+| VERB | 180.026 | 98,58% | SCONJ | 38.594 | 93,90% |
+| AUX | 34.037 | 99,64% | NUM | 6.031 | 98,14% |
+| ADJ | 79.451 | 95,46% | INTJ | 471 | 50,53% |
+| ADV | 37.211 | 98,68% | PUNCT | 157.483 | 99,99% |
+| PRON | 43.133 | 96,06% | SYM | 57 | 100,00% |
+| DET | 290.893 | 99,86% | X | 185 | 56,22% |
 
 ### Diacríticos (val)
 
-| Split | Anotações | Acertos | Acurácia |
-|-------|----------:|--------:|:--------:|
-| Train | 80.319 | 77.858 | 96.94% |
-| Val | 35.064 | 34.366 | **98.01%** |
-| Test | 34.901 | 34.192 | **97.97%** |
+| Métrica | Valor |
+|---------|------:|
+| Anotações avaliadas | 35.064 |
+| Acertos | 34.371 |
+| **Acurácia global** | **98,02%** |
 
-### Diacríticos por palavra (val, n ≥ 100)
+### Diacríticos por palavra (val, n ≥ 90)
 
 | Palavra | n | Acc | Palavra | n | Acc |
 |---------|---:|:---:|---------|---:|:---:|
-| gosto | 167 | 86.2% | aceno | 121 | 94.2% |
-| colmo | 118 | 89.8% | troco | 106 | 94.3% |
-| sossego | 75 | 90.7% | desacordo | 126 | 94.4% |
-| apelo | 122 | 91.0% | espeto | 112 | 94.6% |
-| seco | 200 | 91.0% | cor | 360 | 94.7% |
-| coro | 137 | 91.2% | desgosto | 115 | 94.8% |
-| toco | 92 | 91.3% | conforto | 115 | 94.8% |
-| zelo | 37 | 91.9% | domo | 118 | 94.9% |
-| desmantelo | 103 | 92.2% | tola | 139 | 95.0% |
-| toldo | 130 | 92.3% | arroto | 101 | 95.1% |
-| azedo | 105 | 92.4% | desconforto | 144 | 95.1% |
-| gozo | 145 | 92.4% | abrolho | 126 | 95.2% |
-| entorno | 108 | 92.6% | desespero | 126 | 95.2% |
-| rogo | 122 | 92.6% | golfo | 85 | 95.3% |
-| congelo | 84 | 92.9% | solto | 85 | 95.3% |
-| adorno | 99 | 92.9% | desdobro | 107 | 95.3% |
-| reboco | 86 | 93.0% | engodo | 113 | 95.6% |
-| topo | 118 | 93.2% | emperro | 114 | 95.6% |
-| choro | 135 | 93.3% | sopeso | 92 | 95.7% |
-| redobro | 91 | 93.4% | empeno | 92 | 95.7% |
-| gelo | 127 | 93.7% | decoro | 117 | 95.7% |
-| contorno | 98 | 93.9% | relevo | 95 | 95.8% |
+| congelo | 84 | 66,7% | espeto | 112 | 94,6% |
+| gosto | 167 | 86,2% | cor | 360 | 94,7% |
+| coro | 137 | 89,8% | desgosto | 115 | 94,8% |
+| colmo | 118 | 89,8% | conforto | 115 | 94,8% |
+| sossego | 75 | 90,7% | domo | 118 | 94,9% |
+| apelo | 122 | 91,0% | tola | 139 | 95,0% |
+| seco | 200 | 91,0% | arroto | 101 | 95,1% |
+| desmantelo | 103 | 91,3% | desconforto | 144 | 95,1% |
+| adorno | 99 | 91,9% | abrolho | 126 | 95,2% |
+| toldo | 130 | 92,3% | desespero | 126 | 95,2% |
+| azedo | 105 | 92,4% | golfo | 85 | 95,3% |
+| gozo | 145 | 92,4% | solto | 85 | 95,3% |
+| entorno | 108 | 92,6% | desdobro | 107 | 95,3% |
+| rogo | 122 | 92,6% | engodo | 113 | 95,6% |
+| reboco | 86 | 93,0% | emperro | 114 | 95,6% |
+| topo | 118 | 93,2% | sopeso | 92 | 95,7% |
+| choro | 135 | 93,3% | empeno | 92 | 95,7% |
+| redobro | 91 | 93,4% | decoro | 117 | 95,7% |
+| gelo | 127 | 93,7% | relevo | 95 | 95,8% |
+| contorno | 98 | 93,9% | torre | 148 | 95,9% |
+| aceno | 121 | 94,2% | arrepelo | 125 | 96,0% |
+| troco | 106 | 94,3% | escabelo | 100 | 96,0% |
+| desacordo | 126 | 94,4% | transtorno | 151 | 96,0% |
+| jorro | 108 | 96,3% | emprego | 196 | 96,4% |
+| esmero | 111 | 96,4% | sobro | 86 | 96,5% |
+| repelo | 89 | 96,6% | logro | 92 | 96,7% |
+| desgelo | 132 | 97,0% | desafogo | 99 | 97,0% |
+| desemprego | 676 | 97,0% | choco | 140 | 97,1% |
+| colher | 177 | 97,2% | forma | 730 | 97,3% |
+| enredo | 113 | 97,4% | tempero | 117 | 97,4% |
+| cerco | 118 | 97,5% | cerro | 118 | 97,5% |
+| retorno | 118 | 97,5% | desconsolo | 82 | 97,6% |
+| apego | 127 | 97,6% | rola | 86 | 97,7% |
+| novelo | 98 | 98,0% | aborto | 100 | 98,0% |
+| olho | 151 | 98,0% | degelo | 102 | 98,0% |
+| polo | 521 | 98,1% | cobro | 108 | 98,2% |
+| rolo | 108 | 98,2% | soco | 110 | 98,2% |
+| arremedo | 112 | 98,2% | consolo | 118 | 98,3% |
+| sopro | 123 | 98,4% | desprezo | 130 | 98,5% |
+| acordo | 370 | 98,7% | para | 10.356 | 98,9% |
+| governo | 269 | 98,9% | bola | 93 | 98,9% |
+| conserto | 191 | 99,0% | desassossego | 194 | 99,0% |
+| soldo | 103 | 99,0% | desemperro | 106 | 99,1% |
+| corte | 459 | 99,1% | encosto | 120 | 99,2% |
+| lobo | 649 | 99,2% | despego | 133 | 99,3% |
+| peso | 680 | 99,3% | jogo | 274 | 99,3% |
+| posto | 589 | 99,3% | desapego | 299 | 99,3% |
+| selo | 1.099 | 99,4% | sobre | 3.157 | 99,4% |
+| erro | 343 | 99,4% | molho | 1.042 | 99,5% |
+| porto | 355 | 99,7% | | | |
 
 **Palavras com 100% de acurácia (val, n ≥ 80):** `atropelo`, `rego`, `torno`, `acerto`, `arrojo`, `abono`, `aperto`, `desenredo`, `desaforo`, `estofo`, `despojo`, `forro`, `dobro`, `fosso`, `desempeno`, `desvelo`, `arremesso`, `soma`.
 
@@ -374,56 +445,69 @@ Sem overfitting — train e val próximos.
 
 | Nível | Acertos | % |
 |-------|--------:|--:|
-| full | 14.410 | 41.9% |
-| pw | 11.351 | 33.0% |
-| prev | 7.202 | 21.0% |
-| next | 1.301 | 3.8% |
-| cls | 88 | 0.3% |
-| upos | 14 | 0.04% |
+| full | 14.452 | 42,0% |
+| pw | 11.340 | 33,0% |
+| prev | 7.176 | 20,9% |
+| next | 1.304 | 3,8% |
+| cls | 83 | 0,2% |
+| upos | 16 | 0,05% |
 | prior | 0 | 0% |
 
-96% dos acertos vêm dos 3 níveis mais específicos.
+96% dos acertos vêm dos 3 níveis mais específicos. O resolver usa contexto real — não cai em fallback.
+
+### Diacritize — texto → texto (val)
+
+Avaliação end-to-end da função `diacritize`: compara a string de saída com o gabarito reconstruído (aplicando `diac_table[w][sense]` no texto original nos índices anotados pelo Bifonia).
+
+| Métrica | Valor |
+|---------|------:|
+| Frases com anotação | 45.237 |
+| Frases 100% corretas | 36.486 |
+| **Acurácia por frase** | **80,66%** |
+| Anotações individuais corretas | 34.371 / 35.064 |
+| **Acurácia por anotação** | **98,02%** |
+
+A diferença entre "80,66% por frase" e "98,02% por anotação" é esperada: uma frase com 3 anotações só conta como correta se acertar as 3. Com 98% de acerto por anotação e 2 anotações por frase, o acerto por frase cai para ~96%; com 3+ anotações, cai para ~94%. O 80,66% reflete a distribuição real de anotações por frase no corpus de validação (muitas frases têm 3–5 anotações).
 
 ---
 
 ## Benchmarks
 
-Ambiente: Google Colab, single-thread.
+Ambiente: Google Colab, single-thread, processo persistente (modelo carregado 1× e alimentado via pipe).
 
 ### Modelo
 
 | Etapa | ms/frase | palavras/s |
 |-------|:--------:|-----------:|
-| features + CRF | 0.185 | 72.207 |
-| + resolver | 0.195 | 68.465 |
-| batch | 0.196 | 68.081 |
+| `tag` (completo) | 0.083 | 161.571 |
+| `diacritize` (texto → texto) | 0.130 | 103.125 |
 
-### Tokenizador
+### End-to-end (com tokenizador regex+MWT)
 
-| Tokenizador | ms/frase | palavras/s |
-|-------------|:--------:|-----------:|
-| Stanza (batch 64) | 1.322 | 10.117 |
-| regex+MWT | 0.020 | ~50.000 |
+| Modo | frases/s | palavras/s |
+|------|---------:|-----------:|
+| `tag` | **12.084** | **161.571** |
+| `tag_surface` | ~11.500 | ~155.000 |
+| `diacritize` | **7.712** | **103.125** |
 
-### End-to-end
+### Comparação com outras abordagens
 
-| Configuração | ms/frase | frases/s |
-|--------------|:--------:|---------:|
-| Stanza, sem batch | 12.465 | 80 |
-| Stanza, com batch | 1.448 | 690 |
-| **regex+MWT (1 thread)** | **0.103** | **9.722** |
-| **regex+MWT (4 workers)** | **~0.025** | **~40.000** |
+| Abordagem | frases/s | Acurácia POS |
+|-----------|---------:|:------------:|
+| Stanza (CPU, batch 64) | 690 | 98.72% |
+| Stanza (GPU, batch 64) | ~2.500 | 98.72% |
+| **BCDE-tagger (single-thread)** | **12.084** | **98.73%** |
+| **BCDE-tagger (4 workers)** | **~40.000** | 98.73% |
 
 ### Estimativas práticas
 
-| Volume | Tempo (1 worker) |
-|--------|:----------------:|
-| 1.000 frases | 0.10 s |
-| 10.000 frases | 1.03 s |
-| 100.000 frases | 10.29 s |
-| 1.000.000 frases | 102.86 s |
-| 10.000.000 frases | 1028.58 s |
-
+| Volume | Tempo (1 worker) | Tempo (4 workers) |
+|--------|:----------------:|:-----------------:|
+| 1.000 frases | 0.08 s | 0.02 s |
+| 10.000 frases | 0.83 s | 0.21 s |
+| 100.000 frases | 8.28 s | 2.07 s |
+| 1.000.000 frases | 82.75 s | 20.69 s |
+| 10.000.000 frases | 827.5 s | 206.9 s |
 ---
 
 ## Tokenização
